@@ -17,7 +17,8 @@ library(ggplot2)
 library(knitr)
 
 ```
-
+# **Github**
+The code for this can be found [here.](https://github.com/algodines/HW5_SDS.git)
 # **Problem 1** : Iron Bank
 
 #### Are the observed data ( 70 flagged trades out of 2021) consistent with the SEC's null hypothesis that, over the long run, securities trades from the Iron Bank are flagged at the same 2.4% baseline rate as that of other traders?
