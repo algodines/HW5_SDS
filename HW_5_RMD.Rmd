@@ -1,0 +1,205 @@
+---
+title: "Homework 5"
+author: "Annika Godines"
+date: "2024-02-29"
+output: 
+  html_document:
+    toc: yes
+    toc_float: yes
+---
+```{r global_options, echo=FALSE, warning = FALSE}
+# Set Parameter
+knitr::opts_chunk$set(fig.height=5, fig.width=7, warning=FALSE, tidy=TRUE, tidy.opts=list(width.cutoff=80))
+```
+
+```{r echo = FALSE, warning = FALSE, include = FALSE}
+library(ggplot2)
+library(knitr)
+
+```
+
+# **Problem 1** : Iron Bank
+
+#### Are the observed data ( 70 flagged trades out of 2021) consistent with the SEC's null hypothesis that, over the long run, securities trades from the Iron Bank are flagged at the same 2.4% baseline rate as that of other traders?
+
+Use Monte Carlo simulation (with at least 100,000 simulations) to calculate a p-value under this null hypothesis
+
+```{r echo = FALSE}
+n_simulations <- 100000
+# Stimulate using the Null Hypothesis
+simulated_flag <- rbinom(100000, 2021, 0.024)
+# Calculate 
+flag_outcome <- 70
+testing <- sum(simulated_flag >= flag_outcome)
+# Calculate P
+calc_P <- testing / n_simulations
+
+
+# Plot Graph
+hist(simulated_flag, breaks = 50, col = "purple", border = "white", 
+     xlab = "Number of Flagged Trades", 
+     ylab = "Frequency", 
+     main = "Distribution among flagged trades under the null hypothesis:")
+abline(v = flag_outcome, col = "red", lwd = 2)
+legend("topright", legend = c("Observed Flags", "Simulated Distribution"), 
+       col = c("red", "purple"), lwd  = 2)
+
+#####
+
+# Conclusion
+if (calc_P < 0.05) {
+  conclusion <- "Reject the null hypothesis."
+} else {
+  conclusion <- "Fail to reject the null hypothesis."
+}
+
+# Print p-value and conclusion
+cat("p-value:", round(calc_P, 4), "\n")
+print(conclusion)
+```
+
+
+# **Problem 2** : Health Inspection
+
+#### Are the observed data for Gourmet Bites consistent with the Health Department's null hypothesis that, on average, restaurants in the city are cited for health code violations at the same 3% baseline rate?
+
+Use a Monte Carlo simulation (with at least 100,000 simulations) to calculate a p-value uncer this null hypothesis. Follow the same answer format as the prior problem.
+
+```{r echo = FALSE}
+# Set the parameters
+total_inspections <- 1500
+total_gourmet_bites_inspections <- 50
+total_violations <- 8
+baseline_violation_rate <- 0.03
+simulations <- 100000
+
+# Function to simulate a single inspection outcome
+simulate_inspection <- function() {
+  sample_violations <- rbinom(total_inspections, size = 1, prob = baseline_violation_rate)
+  sum(sample_violations)
+}
+
+# Simulate multiple inspections
+simulated_violations <- replicate(simulations, simulate_inspection())
+
+# Calculate p-value
+p_value <- mean(simulated_violations >= total_violations)
+
+# Output result
+p_value
+
+# Plot histogram of simulated violations
+ggplot(data = data.frame(simulated_violations = simulated_violations), aes(x = simulated_violations)) +
+  geom_histogram(binwidth = 1, fill = "purple", color = "white") +
+  geom_vline(xintercept = total_violations, color = "red") +
+  labs(title = "Distribution of Simulated Violations",
+       x = "Number of Violations",
+       y = "Frequency") +
+  theme_minimal()
+
+# Conclusion
+if (p_value < 0.05) {
+  conclusion <- "Reject the null hypothesis."
+} else {
+  conclusion <- "Fail to reject the null hypothesis."
+}
+
+# Print p-value and conclusion
+cat("p-value:", round(p_value, 4), "\n")
+print(conclusion)
+
+
+```
+
+
+# **Problem 3**: LLM Watermarking
+## **Part A** : The Null or Reference Distribution
+
+```{r echo = FALSE, include = FALSE}
+# Step 1: 
+sentences <- readLines("brown_sentences.txt")
+
+#Step 2:
+letter_freq <- read.csv("letter_frequencies.csv")
+
+#Step 3:
+calculate_chi_squared <- function(sentence, frequencies) {
+  frequencies$Probability <- frequencies$Probability / sum(frequencies$Probability)
+  
+  # Clean data by removing special characters & convert to uppercase
+  clean_sentence <- gsub("[^A-Za-z]", "", sentence)
+  clean_sentence <- toupper(clean_sentence)
+  
+  # Count observed occurrences of each letter
+  observed_counts <- table(factor(strsplit(clean_sentence, "")[[1]], levels = frequencies$Letter))
+  
+  # Calculate expected count
+  total_letters <- sum(observed_counts)
+  expected_counts <- total_letters * frequencies$Probability
+  
+  # Calculate chi-squared statistic
+  chi_squared_stat <- sum((observed_counts - expected_counts)^2 / expected_counts)
+  
+  return(chi_squared_stat)
+}
+
+# Calculate chi-squared statistic for each sentence in the reference data
+chi_squared_values <- sapply(sentences, calculate_chi_squared, frequencies = letter_freq)
+
+#Step 6: 
+# print(chi_squared_values)
+
+# Step 5: Summarize the chi-squared statistics
+summary(chi_squared_values)
+
+```
+
+```{r echo = FALSE}
+# Part B
+test_sentences <- c(
+ "She opened the book and started to read the first chapter, eagerly anticipating what might come next.",
+  "Despite the heavy rain, they decided to go for a long walk in the park, crossing the main avenue by the fountain in the center.",
+  "The museum’s new exhibit features ancient artifacts from various civilizations around the world.",
+  "He carefully examined the document, looking for any clues that might help solve the mystery.",
+  "The students gathered in the auditorium to listen to the guest speaker’s inspiring lecture.",
+  "Feeling vexed after an arduous and zany day at work, she hoped for a peaceful and quiet evening at home, cozying up after a quick dinner with some TV, or maybe a book on her upcoming visit to Auckland.",
+  "The chef demonstrated how to prepare a delicious meal using only locally sourced ingredients, focusing mainly on some excellent dinner recipes from Spain.",
+  "They watched the sunset from the hilltop, marveling at the beautiful array of colors in the sky.",
+  "The committee reviewed the proposal and provided many points of useful feedback to improve the project’s effectiveness.",
+  "Despite the challenges faced during the project, the team worked tirelessly to ensure its successful completion, resulting in a product that exceeded everyone’s expectations."
+)
+
+# Calculate chi-squared statistic for each test sentence
+test_chi <- sapply(test_sentences, calculate_chi_squared, frequencies = letter_freq)
+
+# Calculate p-values for each test sentence based on the null distribution
+calculate_p <- function(test, null_distribution) {
+  number_value_greater_equal <- sum(null_distribution >= test)
+  total <- length(null_distribution)
+  p_value <- number_value_greater_equal / total
+  return(p_value)
+}
+
+# Calculate p-values for each test sentence
+p_values <- sapply(test_chi, calculate_p, null_distribution = chi_squared_values)
+
+# Show a table of p-values rounded to three decimal places
+p_values_table <- data.frame(Sentence = test_sentences, P_Value = round(p_values, 3))
+
+
+# Create a table of test sentences and their p-values
+p_values_table <- data.frame(Sentence = test_sentences, P_Value = round(p_values, 3))
+
+# Print the table using kable
+kable(p_values_table, caption = "Table of Test Sentences and their P-Values", align = "c", row.names = FALSE)
+
+```
+
+## **Part B**: Checking for a Watermark
+
+```{r echo = FALSE}
+# Identify the sentence with the lowest p-value
+watermarked_sentence <- test_sentences[which.min(p_values)]
+cat("The sentence likely produced by an LLM with a watermark:\n", watermarked_sentence, "\n")
+```
+
